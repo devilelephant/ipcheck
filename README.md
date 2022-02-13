@@ -23,3 +23,19 @@ Build and create image, then run in local docker
 ./gradlew bootBuildImage --imageName=devilelephant/ipcheck
 ./docker_run.sh
 ```
+
+Test
+====
+Spring actuator endpoints
+```
+http://localhost:8080/actuator
+http://localhost:8080/actuator/info
+http://localhost:8080/actuator/health
+http://localhost:8080/actuator/metrics
+```
+
+IP Check endpoint
+```text
+http://localhost:8080/ipcheck/<IPv4 ip>
+http://localhost:8080/ipcheck/0.0.0.0
+```
