@@ -20,21 +20,27 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 public class IpTreeLoader {
 
   public static final String FIREHOL_GITHUB_REPO = "https://github.com/firehol/blocklist-ipsets";
+  private final File baseDir;
+  private final File repoDir;
+
+  public IpTreeLoader(String dirName) {
+    this.baseDir = new File(dirName);
+    this.repoDir = new File(dirName, "firehof");
+  }
 
   public static void main(String[] args) {
     IpTree ipTree = new IpTree();
-    new IpTreeLoader().load(ipTree);
+    new IpTreeLoader("./build/repo").load(ipTree);
   }
 
   public void load(IpTree tree) {
-    var dir = new File("./build/firehol");
     try {
-      log.info("updating local: repo={}", dir.getAbsoluteFile());
-      updateLocalRepo(dir);
+      log.info("updating local: repo={}", repoDir.getAbsoluteFile());
+      updateLocalRepo();
 
       log.info("walk repo file tree");
-      var files = fetchFiles(dir.getAbsolutePath(), 10);
-      log.info("parsing files: files={}", files.size());
+      var files = fetchFiles(repoDir.getAbsolutePath(), 10);
+      log.info("parsing {} files", files.size());
       files.forEach(f -> addFile(tree, f));
       log.info("finshed");
     } catch (Exception e) {
@@ -42,18 +48,23 @@ public class IpTreeLoader {
     }
   }
 
-  private void updateLocalRepo(File dir) throws GitAPIException, IOException {
-    if (dir.exists()) {
+  private void updateLocalRepo() throws GitAPIException, IOException {
+    if (!baseDir.exists()) {
+      throw new IllegalStateException("Missing base dir " + baseDir);
+    }
+
+    if (!Files.isWritable(baseDir.toPath())) {
+      throw new IllegalStateException("Unwritable path " + baseDir);
+    }
+
+    if (repoDir.exists()) {
       log.info("git pull existing repo");
-      Git.open(dir.getAbsoluteFile()).pull().call();
+      Git.open(repoDir.getAbsoluteFile()).pull().call();
     } else {
       log.info("git clone new repo");
-      if (!dir.mkdir()) {
-        throw new IllegalStateException("Failed to make {}" + dir.getAbsolutePath());
-      }
       Git.cloneRepository()
           .setURI(FIREHOL_GITHUB_REPO)
-          .setDirectory(dir.getAbsoluteFile())
+          .setDirectory(repoDir.getAbsoluteFile())
           .call();
     }
   }

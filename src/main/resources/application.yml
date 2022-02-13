@@ -1,9 +1,17 @@
-spring:
-
 logging:
   pattern:
     console: "%date{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %clr(%-5level) %logger{0}.%M - %msg %X %ex%n"
   level:
     root: INFO
+    io.micrometer: INFO
     org.springframework.http: INFO
     org.springframework.web: INFO
+
+app:
+  repo_dir: '/var/lib/repo'
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,metrics,info"

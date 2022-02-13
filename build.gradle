@@ -18,6 +18,10 @@ repositories {
     mavenCentral()
 }
 
+springBoot {
+    buildInfo()
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web-services:2.6.3'
     compileOnly 'org.projectlombok:lombok:1.18.22'
@@ -25,12 +29,14 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:1.18.22'
     testImplementation 'org.springframework.boot:spring-boot-starter-test:2.6.3'
 
-    // IP Lookup Tree
-    implementation 'com.github.x25:ip-subnet-tree:1.0.3'
-
     // Metrics
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-core:1.8.2'
     implementation 'io.micrometer:micrometer-registry-cloudwatch2:1.8.2'
+
+
+    // IP Lookup Tree
+    implementation 'com.github.x25:ip-subnet-tree:1.0.3'
 
     // Github Repo Management
     implementation 'org.eclipse.jgit:org.eclipse.jgit:5.4.2.201908231537-r'

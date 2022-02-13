@@ -8,6 +8,7 @@ import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import java.time.Duration;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,26 +21,16 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 @Slf4j
 public class Config {
 
+  @Autowired
+  private Properties properties;
+
   @Bean
   public CloudWatchAsyncClient cloudWatchAsyncClient() {
-    log.info("env {}", System.getenv());
-
-
-    var client = CloudWatchAsyncClient
+    return CloudWatchAsyncClient
         .builder()
         .region(Region.US_EAST_1)
         .credentialsProvider(EnvironmentVariableCredentialsProvider.create())
         .build();
-    try {
-      var resp = client.listMetrics().get();
-      resp.metrics()
-          .stream()
-          .limit(10)
-          .forEach(e -> log.info(e.metricName()));
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return client;
   }
 
   @Bean
@@ -69,6 +60,6 @@ public class Config {
 
   @Bean
   public IpTreeLoader getIpTreeLoader() {
-    return new IpTreeLoader();
+    return new IpTreeLoader(properties.repoDir);
   }
 }
