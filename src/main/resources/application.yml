@@ -1,0 +1,9 @@
+spring:
+
+logging:
+  pattern:
+    console: "%date{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %clr(%-5level) %logger{0}.%M - %msg %X %ex%n"
+  level:
+    root: INFO
+    org.springframework.http: INFO
+    org.springframework.web: INFO
