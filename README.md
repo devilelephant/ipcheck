@@ -37,5 +37,6 @@ http://localhost:8080/actuator/metrics
 IP Check endpoint
 ```text
 http://localhost:8080/ipcheck/<IPv4 ip>
-http://localhost:8080/ipcheck/0.0.0.0
+
+http://localhost:8080/ipcheck/255.0.0.0
 ```
