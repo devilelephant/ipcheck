@@ -1,5 +1,7 @@
 package com.gcoller.ipcheck;
 
+import static java.nio.file.Files.isWritable;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,11 +30,6 @@ public class IpTreeLoader {
     this.repoDir = new File(dirName, "firehof");
   }
 
-  public static void main(String[] args) {
-    IpTree ipTree = new IpTree();
-    new IpTreeLoader("./build/repo").load(ipTree);
-  }
-
   public void load(IpTree tree) {
     try {
       log.info("updating local: repo={}", repoDir.getAbsoluteFile());
@@ -40,20 +37,22 @@ public class IpTreeLoader {
 
       log.info("walk repo file tree");
       var files = fetchFiles(repoDir.getAbsolutePath(), 10);
+
       log.info("parsing {} files", files.size());
-      files.forEach(f -> addFile(tree, f));
+      files.forEach(f -> parseIpFile(tree, f));
       log.info("finshed");
     } catch (Exception e) {
-      throw new IllegalStateException("WTF", e);
+      throw new IllegalStateException("Unexpected error loading tree", e);
     }
   }
 
-  private void updateLocalRepo() throws GitAPIException, IOException {
+  // clone or pull firehof repo locally
+  void updateLocalRepo() throws GitAPIException, IOException {
     if (!baseDir.exists()) {
       throw new IllegalStateException("Missing base dir " + baseDir);
     }
 
-    if (!Files.isWritable(baseDir.toPath())) {
+    if (!isWritable(baseDir.toPath())) {
       throw new IllegalStateException("Unwritable path " + baseDir);
     }
 
@@ -69,18 +68,7 @@ public class IpTreeLoader {
     }
   }
 
-  void addFile(IpTree tree, Path path) {
-    try {
-      var fileName = path.getFileName().toString();
-
-      Files.lines(path)
-          .filter(line -> !line.startsWith("#"))
-          .forEach(line -> tree.add(fileName, line));
-    } catch (IOException e) {
-      log.error("error: path={}", path, e);
-    }
-  }
-
+  // find all relevant files
   Set<Path> fetchFiles(String dir, int depth) throws IOException {
     try (Stream<Path> stream = Files.walk(Paths.get(dir), depth)) {
       return stream
@@ -92,4 +80,17 @@ public class IpTreeLoader {
     }
   }
 
+  void parseIpFile(IpTree tree, Path path) {
+    try {
+      var fileName = path.getFileName().toString();
+
+      Files.lines(path)
+          .filter(line -> !line.startsWith("#"))
+          .forEach(line -> {
+            tree.add(fileName, line.trim());
+          });
+    } catch (IOException e) {
+      log.error("error: path={}", path, e);
+    }
+  }
 }

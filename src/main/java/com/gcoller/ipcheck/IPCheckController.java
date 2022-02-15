@@ -6,8 +6,10 @@ import static java.util.Optional.ofNullable;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import javax.annotation.PostConstruct;
+import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,33 +37,47 @@ public class IPCheckController {
 
   @PostConstruct
   public void init() {
-    log.info("load tree in another thread");
-    new Thread(() -> {
-      ipTreeLoader.load(tree);
-      log.info("load tree finished");
-    }).start();
+    reloadTree();
   }
 
+  // TODO: create some cron job to fire this automatically
   @PostMapping(path = "/ipcheck/reload")
   public void refreshIps() {
-    log.info("start refresh");
+    reloadTree();
+  }
+
+  private void reloadTree() {
+    // load in a thread so response is quick
+    log.info("start");
     IpTree newTree = new IpTree();
-    ipTreeLoader.load(newTree);
-    tree = newTree;
-    log.info("end refresh");
+    new Thread(() -> {
+      ipTreeLoader.load(newTree);
+      tree = newTree;
+      log.info("finished");
+    }).start();
   }
 
   @GetMapping(
       path = "/ipcheck/{ipAddress}",
       produces = {MediaType.APPLICATION_JSON_VALUE}
   )
-  public String check(@PathVariable String ipAddress) {
-    var result = ipCheckTimer.record(() -> ofNullable(tree.find(ipAddress)).orElse(IpTree.EMPTY_SET));
-    var output = """
-        { "ip" : "%s", "result":"%s" }
-        """.formatted(ipAddress, result);
-    log.info(output);
-    return output;
+  public String ipCheck(@PathVariable String ipAddress, HttpServletResponse response) {
+    try {
+      var result = ipCheckTimer.record(() ->
+          ofNullable(tree.find(ipAddress)).orElse(IpTree.EMPTY_SET));
+      var output = """
+          { "ip" : "%s", "result":"%s" }
+          """.formatted(ipAddress, result);
+      log.info(output);
+      if (!result.isEmpty()) {
+        response.setStatus(HttpStatus.FORBIDDEN.value());
+      }
+      return output;
+    } catch (IllegalArgumentException e) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      return """
+          { "ip" : "%s", "result":"cannot parse ip" }
+          """.formatted(ipAddress);
+    }
   }
-
 }

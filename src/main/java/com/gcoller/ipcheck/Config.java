@@ -8,12 +8,11 @@ import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import java.time.Duration;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 
 @Configuration
@@ -21,17 +20,26 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 @Slf4j
 public class Config {
 
-  @Autowired
-  private Properties properties;
+  // root path to clone repo locally
+  @Value("${app.repo_dir}")
+  private String repoDir;
 
   @Bean
   public CloudWatchAsyncClient cloudWatchAsyncClient() {
     return CloudWatchAsyncClient
         .builder()
-        .region(Region.US_EAST_1)
         .credentialsProvider(EnvironmentVariableCredentialsProvider.create())
         .build();
   }
+
+  @Bean
+  public IpTreeLoader getIpTreeLoader() {
+    return new IpTreeLoader(repoDir);
+  }
+
+  //
+  // METRICS CONFIG
+  //
 
   @Bean
   public MeterRegistry getMeterRegistry() {
@@ -56,10 +64,5 @@ public class Config {
         return configuration.get(key);
       }
     };
-  }
-
-  @Bean
-  public IpTreeLoader getIpTreeLoader() {
-    return new IpTreeLoader(properties.repoDir);
   }
 }
