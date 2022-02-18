@@ -25,13 +25,18 @@ public class IpTree {
     return tree.find(ip);
   }
 
-  public void add(String name, String ip) {
+  public void add(String ip, String source) {
+    // fix IpSubnetTree bug
+    if (ip.indexOf('/') == -1) {
+      ip = ip + "/32";
+    }
+
     var set = tree.find(stripCidr(ip));
     if (set == EMPTY_SET) {
       set = new HashSet<>();
       tree.insert(ip, set);
     }
-    set.add(name);
+    set.add(source);
   }
 
   // remove CIDR extension (eg /24)

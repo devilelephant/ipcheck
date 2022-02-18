@@ -41,6 +41,7 @@ public class IpTreeLoader {
       log.info("parsing {} files", files.size());
       files.forEach(f -> parseIpFile(tree, f));
       log.info("finshed");
+
     } catch (Exception e) {
       throw new IllegalStateException("Unexpected error loading tree", e);
     }
@@ -87,7 +88,7 @@ public class IpTreeLoader {
       Files.lines(path)
           .filter(line -> !line.startsWith("#"))
           .forEach(line -> {
-            tree.add(fileName, line.trim());
+            tree.add(line.trim(), fileName);
           });
     } catch (IOException e) {
       log.error("error: path={}", path, e);
