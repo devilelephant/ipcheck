@@ -3,8 +3,12 @@ package com.gcoller.ipcheck;
 import static java.time.Duration.ofMillis;
 import static java.util.Optional.ofNullable;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.util.Map;
+import java.util.Optional;
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -23,11 +27,13 @@ public class IPCheckController {
   private final Timer ipCheckTimer;
   private final IpTreeLoader ipTreeLoader;
   private IpTree tree;
+  private final ObjectMapper mapper;
 
   @Autowired
   public IPCheckController(IpTreeLoader ipTreeLoader, MeterRegistry meterRegistry) {
     this.ipTreeLoader = ipTreeLoader;
     this.tree = new IpTree();
+    this.mapper = new ObjectMapper();
 
     ipCheckTimer = Timer.builder("check_ip")
         .sla(ofMillis(2), ofMillis(300), ofMillis(600))
@@ -64,16 +70,15 @@ public class IPCheckController {
   public String ipCheck(@PathVariable String ipAddress, HttpServletResponse response) {
     try {
       var result = ipCheckTimer.record(() ->
-          ofNullable(tree.find(ipAddress)).orElse(IpTree.EMPTY_SET));
-      var output = """
-          { "ip" : "%s", "result":"%s" }
-          """.formatted(ipAddress, result);
+          ofNullable(tree.find(ipAddress))
+              .orElse(IpTree.EMPTY_SET));
+      var output = mapper.writeValueAsString(Map.of("ip", ipAddress, "result", result));
       log.info(output);
       if (!result.isEmpty()) {
         response.setStatus(HttpStatus.FORBIDDEN.value());
       }
       return output;
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException | JsonProcessingException e) {
       response.setStatus(HttpStatus.BAD_REQUEST.value());
       return """
           { "ip" : "%s", "result":"cannot parse ip" }

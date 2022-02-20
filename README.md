@@ -8,6 +8,7 @@ add an `[ipcheck]` section to your ~/.aws/credentials file
 
 ```text
 [ipcheck]
+aws_default_region = <REGION>
 aws_access_key_id = <KEY>
 aws_secret_access_key = <SECRET>
 ```
@@ -20,7 +21,7 @@ Build
 Build and create image, then run in local docker
 
 ```bash
-./gradlew bootBuildImage --imageName=devilelephant/ipcheck
+./gradlew bootBuildImage --imageName=ipcheck
 ./docker_run.sh
 ```
 

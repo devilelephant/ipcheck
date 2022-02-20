@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 
 @Configuration
@@ -28,7 +28,7 @@ public class Config {
   public CloudWatchAsyncClient cloudWatchAsyncClient() {
     return CloudWatchAsyncClient
         .builder()
-        .credentialsProvider(EnvironmentVariableCredentialsProvider.create())
+        .credentialsProvider(DefaultCredentialsProvider.create())
         .build();
   }
 

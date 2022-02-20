@@ -8,7 +8,7 @@ logging:
     org.springframework.web: INFO
 
 app:
-  repo_dir: '/var/lib/repo'
+  repo_dir: '/var/repo'
 
 management:
   endpoints:

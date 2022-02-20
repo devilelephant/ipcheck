@@ -49,6 +49,9 @@ public class IpTreeLoader {
 
   // clone or pull firehof repo locally
   void updateLocalRepo() throws GitAPIException, IOException {
+    log.info("run path: path={}", new File(".").getAbsolutePath());
+    log.info("baseDir path: path={}", baseDir.getAbsolutePath());
+
     if (!baseDir.exists()) {
       throw new IllegalStateException("Missing base dir " + baseDir);
     }
