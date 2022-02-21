@@ -13,6 +13,7 @@ docker run -it \
   -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
   -p 8080:8080 \
   -u root \
+  -m 2gb \
   --mount source=firehol-repo,target=/var/repo \
   ipcheck
 
