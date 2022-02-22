@@ -1,51 +1,85 @@
 package com.gcoller.ipcheck;
 
+import static java.nio.file.Files.newBufferedWriter;
+import static org.springframework.util.ReflectionUtils.findField;
+import static org.springframework.util.ReflectionUtils.getField;
+
 import com.github.x25.net.tree.IpSubnetTree;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import com.github.x25.net.tree.radix.RadixInt32Tree;
+import com.github.x25.net.tree.radix.node.Node;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Proxies an underlying {@link IpSubnetTree} instance that simplifies insertion.
  */
+@Slf4j
 public class IpTree {
 
-  public static final Set<String> EMPTY_SET = Collections.emptySet();
-  private final IpSubnetTree<Set<String>> tree;
+  private final IpSubnetTree<String> tree;
 
   public IpTree() {
     tree = new IpSubnetTree<>();
-    tree.setDefaultValue(EMPTY_SET);
+    tree.setDefaultValue("");
   }
 
   /**
    * Return a set of zero or more names associated with the given ip address.
    */
-  public Set<String> find(String ip) {
+  public String find(String ip) {
     return tree.find(ip);
   }
 
-  public void add(String ip, String source) {
+  public void add(String ip) {
+    String ipCidr = ip;
     // fix IpSubnetTree bug
     if (ip.indexOf('/') == -1) {
-      ip = ip + "/32";
+      ipCidr = ip + "/32";
     }
-
-    var set = tree.find(stripCidr(ip));
-    if (set == EMPTY_SET) {
-      set = new HashSet<>();
-      tree.insert(ip, set);
-    }
-    set.add(source);
+    tree.insert(ipCidr, ip);
   }
 
-  // remove CIDR extension (eg /24)
-  static String stripCidr(String line) {
-    int i = line.indexOf('/');
-    if (i > -1) {
-      return line.substring(0, i);
-    } else {
-      return line;
+  public void walk(File target) {
+    var node = findTreeRoot();
+
+    if (!target.delete()) {
+      log.warn("Failed to delete target file={}", target.getName());
+    }
+    try (var w = newBufferedWriter(target.toPath())) {
+      walkNode(node, w);
+
+    } catch (IOException e) {
+      log.error("failed to walk tree", e);
     }
   }
+
+  private void walkNode(Node<String> node, BufferedWriter w) throws IOException {
+    if (node.getLeft() != null) {
+      walkNode(node.getLeft(), w);
+    }
+    if (node.getRight() != null) {
+      walkNode(node.getRight(), w);
+    }
+    if (node.getValue() != null) {
+      w.write(node.getValue());
+      w.write('\n');
+    }
+  }
+
+  /**
+   * Function used during testing to access root node for tree walking.
+   */
+  @SuppressWarnings({"ConstantConditions", "rawtypes", "unchecked"})
+  private Node<String> findTreeRoot() {
+    Field treeField = findField(IpSubnetTree.class, "tree");
+    treeField.setAccessible(true);
+    RadixInt32Tree radixTree = (RadixInt32Tree) getField(treeField, tree);
+    Field nodeField = findField(RadixInt32Tree.class, "root");
+    nodeField.setAccessible(true);
+    return (Node<String>) getField(nodeField, radixTree);
+  }
+
 }

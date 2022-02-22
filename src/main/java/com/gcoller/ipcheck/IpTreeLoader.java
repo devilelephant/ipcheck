@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
 /**
@@ -22,12 +23,15 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 public class IpTreeLoader {
 
   public static final String FIREHOL_GITHUB_REPO = "https://github.com/firehol/blocklist-ipsets";
+  public static final int MAX_REPO_WALK_DEPTH = 10;
   private final File baseDir;
   private final File repoDir;
+  private final Set<String> fileFilters;
 
-  public IpTreeLoader(String dirName) {
-    this.baseDir = new File(dirName);
-    this.repoDir = new File(dirName, "firehof");
+  public IpTreeLoader(Path workingPath, Set<String> fileFilters) {
+    this.baseDir = workingPath.toFile();
+    this.repoDir = new File(baseDir, "firehof");
+    this.fileFilters = Set.copyOf(fileFilters);
   }
 
   public void load(IpTree tree) {
@@ -36,11 +40,13 @@ public class IpTreeLoader {
       updateLocalRepo();
 
       log.info("walk repo file tree");
-      var files = fetchFiles(repoDir.getAbsolutePath(), 10);
+      var files = fetchFiles(repoDir.getAbsolutePath());
 
       log.info("parsing {} files", files.size());
       files.forEach(f -> parseIpFile(tree, f));
       log.info("finshed");
+
+      tree.walk(new File(repoDir, "ips.txt"));
 
     } catch (Exception e) {
       throw new IllegalStateException("Unexpected error loading tree", e);
@@ -62,7 +68,10 @@ public class IpTreeLoader {
 
     if (repoDir.exists()) {
       log.info("git pull existing repo");
-      Git.open(repoDir.getAbsoluteFile()).pull().call();
+      try (var open = Git.open(repoDir.getAbsoluteFile())) {
+        open.reset().setMode(ResetType.HARD).call();
+        open.pull().call();
+      }
     } else {
       log.info("git clone new repo");
       Git.cloneRepository()
@@ -73,26 +82,30 @@ public class IpTreeLoader {
   }
 
   // find all relevant files
-  Set<Path> fetchFiles(String dir, int depth) throws IOException {
-    try (Stream<Path> stream = Files.walk(Paths.get(dir), depth)) {
+  Set<Path> fetchFiles(String dir) throws IOException {
+    try (Stream<Path> stream = Files.walk(Paths.get(dir), MAX_REPO_WALK_DEPTH)) {
       return stream
           .filter(file ->
               !Files.isDirectory(file)
-                  && (file.toString().endsWith(".netset") || file.toString().endsWith(".ipset"))
+                  && isUseFile(file)
           )
           .collect(Collectors.toSet());
     }
   }
 
-  void parseIpFile(IpTree tree, Path path) {
-    try {
-      var fileName = path.getFileName().toString();
+  boolean isUseFile(Path path) {
+    String name = path.toFile().getName();
+    return (name.endsWith(".netset") || name.endsWith(".ipset"))
+        // if no fileFilters, return all
+        && (fileFilters.isEmpty() || fileFilters.stream().anyMatch(name::matches));
+  }
 
+  static void parseIpFile(IpTree tree, Path path) {
+    log.info("file={}", path.toFile().getName());
+    try {
       Files.lines(path)
           .filter(line -> !line.startsWith("#"))
-          .forEach(line -> {
-            tree.add(line.trim(), fileName);
-          });
+          .forEach(line -> tree.add(line.trim()));
     } catch (IOException e) {
       log.error("error: path={}", path, e);
     }

@@ -1,3 +1,4 @@
+//file:noinspection GroovyAssignabilityCheck
 plugins {
     id 'org.springframework.boot' version '2.6.3'
     id 'io.spring.dependency-management' version '1.0.11.RELEASE'
@@ -39,7 +40,6 @@ dependencies {
 
     // Github Repo Management
     implementation 'org.eclipse.jgit:org.eclipse.jgit:6.0.0.202111291000-r'
-
 }
 
 tasks.named('test') {

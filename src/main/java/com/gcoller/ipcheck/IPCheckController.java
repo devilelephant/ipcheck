@@ -1,14 +1,12 @@
 package com.gcoller.ipcheck;
 
 import static java.time.Duration.ofMillis;
-import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.util.Map;
-import java.util.Optional;
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -16,8 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -35,7 +33,7 @@ public class IPCheckController {
     this.tree = new IpTree();
     this.mapper = new ObjectMapper();
 
-    ipCheckTimer = Timer.builder("check_ip")
+    ipCheckTimer = Timer.builder("ip_check")
         .sla(ofMillis(2), ofMillis(300), ofMillis(600))
         .publishPercentileHistogram()
         .register(meterRegistry);
@@ -64,25 +62,28 @@ public class IPCheckController {
   }
 
   @GetMapping(
-      path = "/ipcheck/{ipAddress}",
+      path = "/ipcheck",
       produces = {MediaType.APPLICATION_JSON_VALUE}
   )
-  public String ipCheck(@PathVariable String ipAddress, HttpServletResponse response) {
+  public String ipCheck(@RequestParam(name = "ip", required = false) String ip, HttpServletResponse response) {
     try {
-      var result = ipCheckTimer.record(() ->
-          ofNullable(tree.find(ipAddress))
-              .orElse(IpTree.EMPTY_SET));
-      var output = mapper.writeValueAsString(Map.of("ip", ipAddress, "result", result));
+      var result = ipCheckTimer.record(() -> tree.find(ip));
+      if (result == null) {
+        result = "";
+      }
+      var output = mapper.writeValueAsString(Map.of("ip", ip, "result", result));
+
       log.info(output);
-      if (!result.isEmpty()) {
-        response.setStatus(HttpStatus.FORBIDDEN.value());
+
+      if (result.isEmpty()) {
+        response.setStatus(HttpStatus.NOT_FOUND.value());
       }
       return output;
     } catch (IllegalArgumentException | JsonProcessingException e) {
       response.setStatus(HttpStatus.BAD_REQUEST.value());
       return """
           { "ip" : "%s", "result":"cannot parse ip" }
-          """.formatted(ipAddress);
+          """.formatted(ip);
     }
   }
 }

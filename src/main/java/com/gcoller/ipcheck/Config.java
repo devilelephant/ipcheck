@@ -5,8 +5,11 @@ import io.micrometer.cloudwatch2.CloudWatchMeterRegistry;
 import io.micrometer.core.instrument.Clock;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,8 +24,11 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 public class Config {
 
   // root path to clone repo locally
-  @Value("${app.repo_dir}")
-  private String repoDir;
+  @Value("${app.working_dir}")
+  private String workingDir;
+
+  @Value("${app.filters}")
+  private Set<String> fileFilters;
 
   @Bean
   public CloudWatchAsyncClient cloudWatchAsyncClient() {
@@ -33,8 +39,19 @@ public class Config {
   }
 
   @Bean
+  public Path workingPath() {
+    return Path.of(workingDir);
+  }
+
+  @Bean
   public IpTreeLoader getIpTreeLoader() {
-    return new IpTreeLoader(repoDir);
+    var filters = fileFilters.stream()
+        .map(f -> f.indexOf('*') == -1 ? ".*%s.*".formatted(f) : f)
+        .collect(Collectors.toSet());
+    for (String f : filters) {
+      log.info("Filter regex={}", f);
+    }
+    return new IpTreeLoader(workingPath(), filters);
   }
 
   //

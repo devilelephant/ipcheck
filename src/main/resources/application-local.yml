@@ -1,2 +1,3 @@
 app:
-  repo_dir: './build'
+  working_dir: './build'
+  filters: 'feodo,palevo,sslbl,zeus,zeus_badips'

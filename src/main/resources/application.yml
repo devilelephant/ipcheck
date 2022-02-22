@@ -8,7 +8,9 @@ logging:
     org.springframework.web: INFO
 
 app:
-  repo_dir: '/var/repo'
+  working_dir: '/var/repo'
+  # leave empty for all files
+  filters:
 
 management:
   endpoints:
